@@ -267,7 +267,7 @@ export function FieldForm({
             "ప్రణాళిక కోసం వివరాలు సర్వర్‌కు, అందుబాటులో ఉంటే Geminiకి వెళ్తాయి. ఆఫ్‌లైన్ అభ్యర్థనలు సింక్ అయ్యేవరకు పరికరంలో ఉంటాయి.",
           )}
         </p>
-        <div role="status">{message}</div>
+        <output>{message}</output>
         <button
           type="submit"
           className="primary"

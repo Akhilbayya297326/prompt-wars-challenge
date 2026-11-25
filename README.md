@@ -95,15 +95,14 @@ The browser regression test submits a crop photo offline, reloads the notebook, 
 The browser accepts photos up to 12 MB, reduces the longest edge to 1,280 pixels and encodes a compact JPEG before queueing. Re-encoding drops the original camera metadata.
 
 ```sh
-npm test
-npm run build
+npm run check
 npm run test:browser
 npm audit --omit=dev
 ```
 
 The browser test launches headless Microsoft Edge and a temporary local server. On machines with another Chromium browser, set `BROWSER_PATH` to its executable. Tests cover validation, symptom-sensitive guidance, soil and water reasoning, resource matching, language fallback, provider failure, replay, HTTP behavior, offline reload and reconnect. They run without credentials or paid API calls.
 
-The browser suite also exercises all five workflows at a 390-pixel mobile width, photo submission during a connection loss, and axe-core WCAG A/AA rule checks on the English and Telugu field desk.
+`npm run check` runs the JavaScript, React and accessibility lint checks, the Node tests and the production build. The browser suite also exercises all five workflows at a 390-pixel mobile width, photo submission during a connection loss, and axe-core WCAG A/AA rule checks on the English and Telugu field desk. A two-tab regression check verifies that a late sync response cannot restore a plan deleted on the same device.
 
 ## Scope and assumptions
 

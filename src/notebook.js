@@ -30,6 +30,19 @@ export const allPlans = async () =>
     (a, b) => b.time - a.time,
   );
 const save = (entry) => transaction("readwrite", (s) => s.put(entry));
+function finishPendingPlan(id, outcome) {
+  // A second tab may complete or delete this row while the network request is running.
+  // Read and conditionally write in one transaction so its newer state wins.
+  return transaction("readwrite", (store) => {
+    const read = store.get(id);
+    read.onsuccess = () => {
+      const entry = read.result;
+      if (entry?.status === "pending")
+        store.put({ ...entry, ...outcome, input: undefined });
+    };
+    return read;
+  });
+}
 export const remove = (id) => transaction("readwrite", (s) => s.delete(id));
 export function enqueue(input) {
   return save({
@@ -66,7 +79,7 @@ async function drain(onChange) {
     if (entry.status !== "pending") continue;
     const outcome = await submitObservation(entry.input);
     if (!outcome) return;
-    await save({ ...entry, ...outcome, input: undefined });
+    await finishPendingPlan(entry.id, outcome);
     await onChange();
   }
 }

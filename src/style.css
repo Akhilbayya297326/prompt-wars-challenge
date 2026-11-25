@@ -527,8 +527,9 @@ textarea {
 .dictate {
   margin: -8px 0 10px;
 }
-[role="status"]:not(:empty),
+output:not(:empty),
 [role="alert"] {
+  display: block;
   padding: 10px 12px;
   margin: 8px 0;
   border-radius: 8px;
@@ -855,7 +856,7 @@ textarea {
     overflow: hidden;
     clip-path: inset(50%);
   }
-  aside [role="status"]:not(:empty) {
+  aside output:not(:empty) {
     width: 100%;
     margin: 0;
   }

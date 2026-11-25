@@ -7,10 +7,14 @@ export function useNotebook() {
   const [storageError, setStorageError] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const activeSync = useRef(null);
-  const refresh = useCallback(async () => {
-    setEntries(await allPlans());
-    setStorageError(false);
-  }, []);
+  const refresh = useCallback(
+    () =>
+      allPlans().then((saved) => {
+        setEntries(saved);
+        setStorageError(false);
+      }),
+    [],
+  );
 
   const sync = useCallback(() => {
     if (activeSync.current) return activeSync.current;

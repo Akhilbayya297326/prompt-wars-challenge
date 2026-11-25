@@ -30,6 +30,13 @@ function App() {
   const [view, setView] = useState("desk");
   const [tool, setTool] = useState("crop");
   const [drafts, setDrafts] = useState({});
+  const [deskDate, setDeskDate] = useState(() => new Date());
+  useEffect(() => {
+    // Refresh the date when reopening a field desk left open overnight.
+    const updateDate = () => setDeskDate(new Date());
+    window.addEventListener("focus", updateDate);
+    return () => window.removeEventListener("focus", updateDate);
+  }, []);
   const { online, entries, storageError, syncing, sync, savePlan, removePlan } =
     useNotebook();
   const [voiceMessage, setVoiceMessage] = useState("");
@@ -194,7 +201,7 @@ function App() {
                     weekday: "short",
                     day: "numeric",
                     month: "long",
-                  }).format(new Date())}
+                  }).format(deskDate)}
                 </span>
                 <h1 tabIndex="-1">
                   {t("Your field desk", "आपका खेत डेस्क", "మీ పొలం డెస్క్")}
@@ -268,7 +275,7 @@ function App() {
                     </span>
                   </button>
                 )}
-                <p role="status">{voiceMessage}</p>
+                <output>{voiceMessage}</output>
               </aside>
               <FieldForm
                 drafts={drafts}

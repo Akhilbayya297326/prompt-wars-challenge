@@ -4,6 +4,7 @@ import { chromium } from "playwright-core";
 import AxeBuilder from "@axe-core/playwright";
 import { createApp } from "../server/app.js";
 import { createService } from "../server/service.js";
+import { checkConcurrentSync } from "./check-concurrent-sync.js";
 
 const app = createApp(createService());
 const server = app.listen(0, "127.0.0.1");
@@ -163,6 +164,10 @@ try {
   }
   await checkAccessibility();
   assert.deepEqual(errors, []);
+  await checkConcurrentSync(
+    browser,
+    "http://127.0.0.1:" + server.address().port,
+  );
   console.log(
     "Browser checks passed: mobile width, offline reload, durable queue, reconnect, scheme match, Telugu persistence.",
   );

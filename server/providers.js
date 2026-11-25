@@ -24,7 +24,8 @@ export function createModel(apiKey, model) {
   if (!apiKey) return null;
   const client = new GoogleGenAI({ apiKey, httpOptions: { timeout: 24000 } });
   return async (input, guide, weather) => {
-    const { id, photo, location, ...context } = input;
+    // Keep internal request IDs and coordinates out of the model context.
+    const { id: _id, photo, location: _location, ...context } = input;
     const parts = [
       {
         text: JSON.stringify({

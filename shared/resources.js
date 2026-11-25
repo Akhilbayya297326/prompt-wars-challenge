@@ -92,7 +92,7 @@ const clean = (value) =>
 const normalize = (value) =>
   clean(value)
     .toLowerCase()
-    .replace(/[\s.\-]+/gu, "");
+    .replace(/[\s.-]+/gu, "");
 
 export function resourcesFor(input = {}) {
   const locale = ["en", "hi", "te"].indexOf(input.lang);
