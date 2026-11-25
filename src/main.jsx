@@ -10,12 +10,11 @@ import {
   Languages,
   LayoutGrid,
   Mic,
-  NotebookPen,
   Sprout,
 } from "lucide-react";
 import { ToolIcon } from "./ToolIcon.jsx";
-import { Plan } from "./Plan.jsx";
-import { allPlans, enqueue, remove, syncPlans } from "./notebook.js";
+import { NotebookView } from "./NotebookView.jsx";
+import { useNotebook } from "./useNotebook.js";
 import "./style.css";
 
 function App() {
@@ -31,51 +30,12 @@ function App() {
   const [view, setView] = useState("desk");
   const [tool, setTool] = useState("crop");
   const [drafts, setDrafts] = useState({});
-  const [online, setOnline] = useState(navigator.onLine);
-  const [entries, setEntries] = useState([]);
-  const [storageError, setStorageError] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const { online, entries, storageError, syncing, sync, savePlan, removePlan } =
+    useNotebook();
   const [voiceMessage, setVoiceMessage] = useState("");
   const voiceRef = useRef();
-  const flight = useRef();
   const t = (...words) => local(lang, ...words);
-  const refresh = async () => {
-    setEntries(await allPlans());
-    setStorageError(false);
-  };
-  function sync() {
-    if (flight.current) return flight.current;
-    setSyncing(true);
-    flight.current = refresh()
-      .then(() => syncPlans(refresh))
-      .then(refresh)
-      .catch(() => setStorageError(true))
-      .finally(() => {
-        flight.current = null;
-        setSyncing(false);
-      });
-    return flight.current;
-  }
-  useEffect(() => {
-    const network = () => {
-      setOnline(navigator.onLine);
-      void sync();
-    };
-    const timer = setInterval(() => {
-      if (!document.hidden) void sync();
-    }, 45000);
-    network();
-    window.addEventListener("online", network);
-    window.addEventListener("offline", network);
-    window.addEventListener("focus", network);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener("online", network);
-      window.removeEventListener("offline", network);
-      window.removeEventListener("focus", network);
-      voiceRef.current?.abort();
-    };
-  }, []);
+  useEffect(() => () => voiceRef.current?.abort(), []);
   useEffect(() => {
     document.documentElement.lang = lang;
     try {
@@ -136,17 +96,14 @@ function App() {
     }
   }
   async function submit(input) {
-    await enqueue(input);
+    await savePlan(input);
     setDrafts((previous) => {
       const next = { ...previous };
       delete next[input.tool];
       return next;
     });
-    await refresh();
     openView("notes");
-    await sync();
   }
-  const pending = entries.filter((e) => e.status === "pending").length;
   function openView(next) {
     setView(next);
     requestAnimationFrame(() => {
@@ -326,65 +283,15 @@ function App() {
             </div>
           </>
         ) : (
-          <section className="notebook">
-            <div className="heading">
-              <div>
-                <h1 tabIndex="-1">
-                  {t("Field notebook", "खेत नोटबुक", "పొలం నోట్‌బుక్")}
-                </h1>
-              </div>
-              {pending > 0 && (
-                <button
-                  className="secondary"
-                  disabled={!online || syncing}
-                  onClick={sync}
-                >
-                  {t(
-                    "Sync pending plans",
-                    "लंबित योजनाएँ सिंक करें",
-                    "పెండింగ్ ప్రణాళికలు సింక్ చేయండి",
-                  )}{" "}
-                  ({pending})
-                </button>
-              )}
-            </div>
-            {!entries.length && (
-              <div className="empty">
-                <NotebookPen aria-hidden="true" />
-                <h2>
-                  {t(
-                    "Your notebook is empty",
-                    "आपकी नोटबुक खाली है",
-                    "మీ నోట్‌బుక్ ఖాళీగా ఉంది",
-                  )}
-                </h2>
-                <button className="primary" onClick={() => openView("desk")}>
-                  {t("Open field desk", "खेत डेस्क खोलें", "పొలం డెస్క్ తెరవండి")}
-                </button>
-              </div>
-            )}
-            <div aria-live="polite">
-              {entries.map((entry, index) => (
-                <Plan
-                  key={entry.id}
-                  entry={entry}
-                  latest={index === 0}
-                  onRemove={
-                    entry.status !== "pending"
-                      ? async (id) => {
-                          try {
-                            await remove(id);
-                            await refresh();
-                          } catch {
-                            setStorageError(true);
-                          }
-                        }
-                      : undefined
-                  }
-                />
-              ))}
-            </div>
-          </section>
+          <NotebookView
+            entries={entries}
+            online={online}
+            syncing={syncing}
+            onSync={sync}
+            onRemove={removePlan}
+            onOpenDesk={() => openView("desk")}
+            t={t}
+          />
         )}
       </main>
     </>

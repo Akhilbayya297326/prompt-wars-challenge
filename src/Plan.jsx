@@ -3,8 +3,10 @@ import { toolText } from "./copy.js";
 import { local } from "../shared/fields.js";
 import { ChevronDown } from "lucide-react";
 import { ToolIcon } from "./ToolIcon.jsx";
+import { isFieldPlan } from "./plan-response.js";
 export function Plan({ entry, onRemove, latest }) {
-  const { result, lang, tool } = entry;
+  const { lang, tool } = entry;
+  const result = isFieldPlan(entry.result) ? entry.result : null;
   const t = (...words) => local(lang, ...words);
   return (
     <details className="plan" lang={lang} open={latest}>
@@ -19,6 +21,15 @@ export function Plan({ entry, onRemove, latest }) {
         </span>
         <ChevronDown aria-hidden="true" />
       </summary>
+      {entry.status === "complete" && !result && (
+        <p>
+          {t(
+            "This saved plan is incomplete. Create a new plan from the field desk.",
+            "यह सहेजी गई योजना अधूरी है। खेत डेस्क से नई योजना बनाएँ।",
+            "ఈ ప్రణాళిక అసంపూర్ణంగా ఉంది. పొలం డెస్క్‌లో కొత్త ప్రణాళికను రూపొందించండి.",
+          )}
+        </p>
+      )}
       {entry.status === "pending" && (
         <p>
           {t(

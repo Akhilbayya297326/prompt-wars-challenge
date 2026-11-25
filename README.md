@@ -90,6 +90,8 @@ Render runs the Express API. Vercel serves the built React app. The browser send
 
 ## Verification
 
+The browser regression test submits a crop photo offline, reloads the notebook, and exercises three successive sync outcomes: an HTTP timeout, an incomplete reply and a valid plan. It checks that the observation survives both failures and completes as a single notebook entry. The Node test suite also checks the saved-plan format against all five workflows in English, Hindi and Telugu.
+
 The browser accepts photos up to 12 MB, reduces the longest edge to 1,280 pixels and encodes a compact JPEG before queueing. Re-encoding drops the original camera metadata.
 
 ```sh

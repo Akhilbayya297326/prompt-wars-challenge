@@ -88,7 +88,33 @@ try {
   await page.reload();
   await page.getByRole("button", { name: /Field notebook/ }).click();
   await page.getByText("Saved on this device.", { exact: false }).waitFor();
-  await context.setOffline(false);
+  // Both failures must leave the original offline observation available for replay.
+  let attempts = 0;
+  await page.route("**/api/advice", async (route) => {
+    attempts++;
+    if (attempts === 1)
+      return route.fulfill({ status: 408, body: "Request timed out" });
+    if (attempts === 2)
+      return route.fulfill({ json: { steps: ["Incomplete response"] } });
+    await route.continue();
+  });
+  const response = () =>
+    page.waitForResponse((r) => r.url().endsWith("/api/advice"));
+  await Promise.all([response(), context.setOffline(false)]);
+  const retry = page.getByRole("button", { name: /Sync pending plans/ });
+  for (const attempt of [1, 2]) {
+    await page.waitForFunction(
+      () => {
+        const button = document.querySelector(".notebook .secondary");
+        return button && !button.disabled;
+      },
+      null,
+      { timeout: 5000 },
+    );
+    assert.equal(attempts, attempt);
+    await page.getByText("Saved on this device.", { exact: false }).waitFor();
+    await Promise.all([response(), retry.click()]);
+  }
   await page.getByText(/Check soil moisture/).waitFor();
   await page.getByText(/Photo was not analyzed/).waitFor();
   assert.equal(await page.locator(".plan").count(), 1);

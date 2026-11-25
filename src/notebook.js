@@ -1,4 +1,5 @@
 import axios from "axios";
+import { isFieldPlan } from "./plan-response.js";
 
 let connection;
 function openNotebook() {
@@ -42,38 +43,40 @@ export function enqueue(input) {
     input,
   });
 }
-export async function syncPlans(onChange) {
-  async function drain() {
-    for (const entry of (await allPlans()).reverse()) {
-      if (!navigator.onLine || entry.status !== "pending") continue;
-      let result;
-      try {
-        result = (
-          await axios.post("/api/advice", entry.input, { timeout: 45000 })
-        ).data;
-        if (!Array.isArray(result?.steps)) return;
-      } catch (err) {
-        const status = err.response?.status;
-        if (!status || status === 429 || status >= 500) return;
-        await save({
-          ...entry,
-          status: "failed",
-          error: err.response?.data?.error || "Invalid request",
-          input: undefined,
-        });
-        await onChange();
-        continue;
-      }
-      // Readers see a complete new state after this single transaction commits.
-      await save({ ...entry, input: undefined, status: "complete", result });
-      await onChange();
-    }
+async function submitObservation(input) {
+  try {
+    const { data } = await axios.post("/api/advice", input, { timeout: 45000 });
+    return isFieldPlan(data) ? { status: "complete", result: data } : null;
+  } catch (err) {
+    // Only discard an input if the API definitively rejected the observation.
+    // Timeouts, rate limits, gateway failures and unexpected replies can be retried.
+    if (![400, 413, 415, 422].includes(err.response?.status)) return null;
+    const message = err.response.data?.error;
+    return {
+      status: "failed",
+      error: typeof message === "string" ? message : "Invalid request",
+    };
   }
+}
+
+async function drain(onChange) {
+  if (!navigator.onLine) return;
+  const oldestFirst = (await allPlans()).reverse();
+  for (const entry of oldestFirst) {
+    if (entry.status !== "pending") continue;
+    const outcome = await submitObservation(entry.input);
+    if (!outcome) return;
+    await save({ ...entry, ...outcome, input: undefined });
+    await onChange();
+  }
+}
+
+export async function syncPlans(onChange) {
   if (navigator.locks)
     return navigator.locks.request(
       "krishi-notebook-sync",
       { ifAvailable: true },
-      (lock) => (lock ? drain() : undefined),
+      (lock) => (lock ? drain(onChange) : undefined),
     );
-  return drain();
+  return drain(onChange);
 }
