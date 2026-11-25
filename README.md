@@ -61,13 +61,17 @@ Requests have random IDs and a fingerprint of their validated inputs. A running 
 
 The server checks image type, signature and size, validates fields and coordinates, limits request size and frequency, and applies security headers. Browsers request microphone and location permission only after a user action. Location is rounded to two decimals for weather. Browser speech capabilities and available voices vary. The form works with touch and keyboard alone. Use HTTPS or localhost for offline caching and browser permissions.
 
-## Deploy it yourself with Render and Vercel
+## Deploy frontend and API together on Vercel
+
+Import this repository with the Vite preset. The build creates the static app in `dist`. The Node.js Functions at `api/health.js` and `api/advice.js` use the same Express application as the standalone server. Set optional server credentials in the Vercel project's environment settings. Verify the public URL by opening `/api/health` and creating a completed plan in the field notebook.
+
+## Alternative deployment with Render and Vercel
 
 Render runs the Express API. Vercel serves the built React app. The browser sends requests to its own `/api` path, and Vercel forwards those requests to Render.
 
 1. **Start on Render.** In the dashboard, choose **New → Web Service**, connect this GitHub repository, select branch `main` and keep the repository root as the working directory. Choose **Docker** as the language. The root `Dockerfile` supplies both the build and startup commands. Set **Health Check Path** to `/api/health` and select the instance plan you want. To control future releases yourself, choose **Off** for Auto-Deploy. [Render Docker setup](https://render.com/docs/docker) · [Render health checks](https://render.com/docs/health-checks)
 2. **Choose the backend capabilities.** You can run the field guide without credentials. For image analysis, add `GEMINI_API_KEY` in the Render service's **Environment** settings. Add `MONGODB_URI` only if you have configured Atlas and granted the service network and database access. Both secrets belong on Render. Click **Create Web Service**. After the service is live, open its HTTPS address with `/api/health` appended. Expect `{"status":"ok"}`.
-3. **Connect the two hosts.** In the GitHub repository root, create `vercel.json` using the example below. Replace `YOUR-SERVICE.onrender.com` with the exact hostname Render assigned. Commit the file to the existing `main` branch. This rewrite forwards both the health check and plan requests while keeping a single browser origin. [Vercel external rewrites](https://vercel.com/docs/routing/rewrites)
+3. **Connect the two hosts.** If you choose the split setup, remove the two Vercel Function entry points in `api/` and add the following rewrite to the root `vercel.json`. Replace `YOUR-SERVICE.onrender.com` with the exact hostname Render assigned. Commit your changes to the existing `main` branch. This rewrite forwards both the health check and plan requests while keeping a single browser origin. [Vercel external rewrites](https://vercel.com/docs/routing/rewrites)
 
 ```json
 {
