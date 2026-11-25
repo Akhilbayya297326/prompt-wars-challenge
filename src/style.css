@@ -170,7 +170,9 @@ nav span {
 }
 .field-image {
   background-color: #769e6e;
-  background-image: url("/field.webp");
+  background-image:
+    radial-gradient(ellipse at 85% 110%, transparent 0 43%, #dce7aa 44% 45%, transparent 46%),
+    repeating-radial-gradient(ellipse at 12% -60%, #557b42 0 19px, #a7bd72 20px 26px, #789950 28px 43px, #c2cd82 44px 50px);
   background-position: center;
   background-size: cover;
 }
