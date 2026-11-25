@@ -61,6 +61,29 @@ Requests have random IDs and a fingerprint of their validated inputs. A running 
 
 The server checks image type, signature and size, validates fields and coordinates, limits request size and frequency, and applies security headers. Browsers request microphone and location permission only after a user action. Location is rounded to two decimals for weather. Browser speech capabilities and available voices vary. The form works with touch and keyboard alone. Use HTTPS or localhost for offline caching and browser permissions.
 
+## Deploy it yourself with Render and Vercel
+
+Render runs the Express API. Vercel serves the built React app. The browser sends requests to its own `/api` path, and Vercel forwards those requests to Render.
+
+1. **Start on Render.** In the dashboard, choose **New → Web Service**, connect this GitHub repository, select branch `main` and keep the repository root as the working directory. Choose **Docker** as the language. The root `Dockerfile` supplies both the build and startup commands. Set **Health Check Path** to `/api/health` and select the instance plan you want. To control future releases yourself, choose **Off** for Auto-Deploy. [Render Docker setup](https://render.com/docs/docker) · [Render health checks](https://render.com/docs/health-checks)
+2. **Choose the backend capabilities.** You can run the field guide without credentials. For image analysis, add `GEMINI_API_KEY` in the Render service's **Environment** settings. Add `MONGODB_URI` only if you have configured Atlas and granted the service network and database access. Both secrets belong on Render. Click **Create Web Service**. After the service is live, open its HTTPS address with `/api/health` appended. Expect `{"status":"ok"}`.
+3. **Connect the two hosts.** In the GitHub repository root, create `vercel.json` using the example below. Replace `YOUR-SERVICE.onrender.com` with the exact hostname Render assigned. Commit the file to the existing `main` branch. This rewrite forwards both the health check and plan requests while keeping a single browser origin. [Vercel external rewrites](https://vercel.com/docs/routing/rewrites)
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://YOUR-SERVICE.onrender.com/api/:path*"
+    }
+  ]
+}
+```
+
+4. **Import on Vercel.** Choose **Add New → Project**, import this repository, select **Vite**, leave **Root Directory** at the repository root, and use `npm ci`, `npm run build` and `dist` for the install command, build command and output directory respectively. Select Node.js **24.x** and click **Deploy**. [Vite on Vercel](https://vercel.com/docs/frameworks/frontend/vite)
+5. **Verify from your phone.** Open `/api/health` on the **Vercel** address and look for the same JSON. Then open the homepage, enter **Paddy**, choose **Wilting**, and create a plan. Its appearance as a completed notebook entry exercises the API route that a homepage check alone misses. If Render's health URL works and Vercel's returns a 404, check the rewrite hostname, the committed file location and the commit Vercel deployed.
+
 ## Verification
 
 The browser accepts photos up to 12 MB, reduces the longest edge to 1,280 pixels and encodes a compact JPEG before queueing. Re-encoding drops the original camera metadata.

@@ -19,6 +19,7 @@ try {
     viewport: { width: 390, height: 844 },
   });
   const page = await context.newPage();
+  const picker = page.getByRole("combobox", { name: "Field tools" });
   const errors = [];
   async function checkAccessibility() {
     const report = await new AxeBuilder({ page })
@@ -45,6 +46,30 @@ try {
   });
   assert.ok(await page.evaluate(() => document.body.scrollWidth <= innerWidth));
   await checkAccessibility();
+  for (const width of [320, 360, 430, 768, 1280]) {
+    await page.setViewportSize({ width, height: 800 });
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      "Layout overflow at " + width,
+    );
+  }
+  await page.getByRole("button", { name: /Soil & water/ }).click();
+  await page.getByLabel("Crop", { exact: true }).fill("Cotton");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await picker.selectOption("crop");
+  await picker.selectOption("soil");
+  assert.equal(
+    await page.getByLabel("Crop", { exact: true }).inputValue(),
+    "Cotton",
+  );
+  await page.getByRole("button", { name: /Field notebook/ }).click();
+  await page.getByRole("button", { name: "Field desk", exact: true }).click();
+  assert.equal(
+    await page.getByLabel("Crop", { exact: true }).inputValue(),
+    "Cotton",
+  );
   await context.setOffline(true);
   await page.reload();
   await page.getByLabel("Crop", { exact: true }).fill("Paddy");
@@ -52,14 +77,13 @@ try {
   const sample = await page.evaluate(
     () => document.createElement("canvas").toDataURL("image/png").split(",")[1],
   );
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles({
-      name: "sample.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(sample, "base64"),
-    });
-  await page.getByRole("button", { name: "Create field plan" }).click();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "sample.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(sample, "base64"),
+  });
+  await page.getByRole("button", { name: "Remove photo" }).waitFor();
+  await page.getByRole("button", { name: "Save offline" }).click();
   await page.getByText("Saved on this device.", { exact: false }).waitFor();
   await page.reload();
   await page.getByRole("button", { name: /Field notebook/ }).click();
@@ -69,13 +93,13 @@ try {
   await page.getByText(/Photo was not analyzed/).waitFor();
   assert.equal(await page.locator(".plan").count(), 1);
   await page.getByRole("button", { name: "Field desk", exact: true }).click();
-  await page.getByRole("button", { name: /Scheme finder/ }).click();
+  await picker.selectOption("schemes");
   await page.getByLabel("State or union territory").fill("Telangana");
   await page.getByLabel("Land area").fill("1.5");
   await page.getByRole("button", { name: "Create field plan" }).click();
   await page.getByRole("link", { name: "Rythu Bharosa" }).waitFor();
   await page.getByRole("button", { name: "Field desk", exact: true }).click();
-  await page.getByRole("button", { name: /Soil & water/ }).click();
+  await picker.selectOption("soil");
   await page.getByLabel("Crop", { exact: true }).fill("Millet");
   await page.getByLabel("Soil pH").fill("5.5");
   await page.getByLabel("Nitrogen (N)").selectOption("low");
@@ -84,13 +108,13 @@ try {
   await page.getByText(/pH 5.5 · acidic/).waitFor();
   await page.getByText(/Compare locally suitable millets/).waitFor();
   await page.getByRole("button", { name: "Field desk", exact: true }).click();
-  await page.getByRole("button", { name: /Harvest quality/ }).click();
+  await picker.selectOption("harvest");
   await page.getByLabel("Crop", { exact: true }).fill("Paddy");
   await page.getByLabel("Lot condition").selectOption("debris");
   await page.getByRole("button", { name: "Create field plan" }).click();
   await page.getByText(/Separate visible foreign matter/).waitFor();
   await page.getByRole("button", { name: "Field desk", exact: true }).click();
-  await page.getByRole("button", { name: /Learning library/ }).click();
+  await picker.selectOption("learn");
   await page
     .getByLabel("What would you like to learn?")
     .fill("Paddy irrigation");
@@ -101,6 +125,16 @@ try {
   await page.getByRole("heading", { name: "మీ పొలం డెస్క్" }).waitFor();
   await page.reload();
   assert.equal(await page.locator("html").getAttribute("lang"), "te");
+  await page.setViewportSize({ width: 320, height: 650 });
+  for (const language of ["hi", "te"]) {
+    await page.getByLabel("Language / भाषा / భాష").selectOption(language);
+    assert.ok(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      "Overflow in " + language,
+    );
+  }
   await checkAccessibility();
   assert.deepEqual(errors, []);
   console.log(

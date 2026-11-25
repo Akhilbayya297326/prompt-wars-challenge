@@ -8,6 +8,8 @@ import {
 } from "../shared/fields.js";
 import { optionLabels, toolText } from "./copy.js";
 import { preparePhoto } from "./photo.js";
+import { Camera, CloudOff, Mic, NotebookPen, Trash2 } from "lucide-react";
+import { ToolIcon } from "./ToolIcon.jsx";
 
 const initial = {
   crop: "",
@@ -24,8 +26,21 @@ const initial = {
   observation: "unsure",
   photo: null,
 };
-export function FieldForm({ tool, lang, t, onSubmit }) {
-  const [form, setForm] = useState(initial);
+export function FieldForm({
+  tool,
+  lang,
+  t,
+  onSubmit,
+  online,
+  drafts,
+  setDrafts,
+}) {
+  const form = drafts[tool] ?? initial;
+  const setForm = (update) =>
+    setDrafts((previous) => ({
+      ...previous,
+      [tool]: update(previous[tool] ?? initial),
+    }));
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [reading, setReading] = useState(false);
@@ -73,10 +88,9 @@ export function FieldForm({ tool, lang, t, onSubmit }) {
   async function readPhoto(event) {
     const version = ++photoVersion.current;
     const file = event.target.files[0];
-    change("photo", null);
+    if (!file) return;
     setMessage("");
     setReading(false);
-    if (!file) return;
     setReading(true);
     try {
       const photo = await preparePhoto(file);
@@ -174,15 +188,13 @@ export function FieldForm({ tool, lang, t, onSubmit }) {
   return (
     <section className="sheet" id="field-form" aria-labelledby="workflow-title">
       <div className="sheet-head">
+        <ToolIcon tool={tool} />
         <div>
           <span className="eyebrow">{info.name}</span>
           <h2 id="workflow-title" tabIndex="-1">
             {info.title}
           </h2>
         </div>
-        <span aria-hidden="true" className="toolmark">
-          {info.icon}
-        </span>
       </div>
       <form onSubmit={submit}>
         <div className="grid">
@@ -308,27 +320,72 @@ export function FieldForm({ tool, lang, t, onSubmit }) {
           />
         </label>
         {Speech && (
-          <button className="text-button" type="button" onClick={dictate}>
+          <button
+            className="text-button dictate"
+            type="button"
+            onClick={dictate}
+          >
+            <Mic aria-hidden="true" />
             {listening
               ? t("Stop dictation", "बोलना बंद करें", "ఆపండి")
               : t("Dictate a note", "बोलकर लिखें", "మాట్లాడి నమోదు చేయండి")}
           </button>
         )}
         {["crop", "soil", "harvest"].includes(tool) && (
-          <label className="upload">
-            {t(
-              "Attach a photo (optional)",
-              "तस्वीर जोड़ें (वैकल्पिक)",
-              "ఫోటో జోడించండి (ఐచ్ఛికం)",
+          <div className="attachment">
+            <label className="upload">
+              {form.photo ? (
+                <img src={form.photo} alt="" />
+              ) : (
+                <span className="upload-icon">
+                  <Camera aria-hidden="true" />
+                </span>
+              )}
+              <span>
+                <strong>
+                  {form.photo
+                    ? t("Change photo", "तस्वीर बदलें", "ఫోటో మార్చండి")
+                    : t(
+                        "Attach a photo (optional)",
+                        "तस्वीर जोड़ें (वैकल्पिक)",
+                        "ఫోటో జోడించండి (ఐచ్ఛికం)",
+                      )}
+                </strong>
+                <small>
+                  {reading
+                    ? t(
+                        "Preparing photo…",
+                        "तस्वीर तैयार हो रही है…",
+                        "ఫోటో సిద్ధమవుతోంది…",
+                      )
+                    : form.photo
+                      ? t("Photo attached", "तस्वीर जुड़ गई", "ఫోటో జోడించబడింది")
+                      : "JPEG / PNG / WebP · 12 MB"}
+                </small>
+              </span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={readPhoto}
+              />
+            </label>
+            {form.photo && (
+              <button
+                type="button"
+                className="photo-remove"
+                onClick={() => {
+                  photoVersion.current++;
+                  fileRef.current.value = "";
+                  change("photo", null);
+                  setReading(false);
+                }}
+                aria-label={t("Remove photo", "तस्वीर हटाएँ", "ఫోటో తొలగించండి")}
+              >
+                <Trash2 aria-hidden="true" />
+              </button>
             )}
-            <small>JPEG / PNG / WebP · 12 MB</small>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={readPhoto}
-            />
-          </label>
+          </div>
         )}
         <p className="privacy">
           {t(
@@ -343,7 +400,20 @@ export function FieldForm({ tool, lang, t, onSubmit }) {
           className="primary"
           disabled={busy || reading || locating}
         >
-          {t("Create field plan", "खेत की योजना बनाएँ", "పొలం ప్రణాళిక రూపొందించండి")}
+          {online ? (
+            <NotebookPen aria-hidden="true" />
+          ) : (
+            <CloudOff aria-hidden="true" />
+          )}
+          {busy
+            ? t("Saving…", "सहेजा जा रहा है…", "భద్రపరుస్తోంది…")
+            : online
+              ? t(
+                  "Create field plan",
+                  "खेत की योजना बनाएँ",
+                  "పొలం ప్రణాళిక రూపొందించండి",
+                )
+              : t("Save offline", "ऑफ़लाइन सहेजें", "ఆఫ్‌లైన్‌లో భద్రపరచండి")}
         </button>
       </form>
     </section>

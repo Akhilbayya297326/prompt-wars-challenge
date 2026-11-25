@@ -8,7 +8,6 @@ export const definitions = {
     "Read the signs in your crop.",
     "फसल के लक्षण समझें।",
     "పంట లక్షణాలు తెలుసుకోండి.",
-    "✣",
   ],
   soil: [
     "Smart AgriCore",
@@ -18,7 +17,6 @@ export const definitions = {
     "Plan from your soil card.",
     "मिट्टी कार्ड से योजना बनाएँ।",
     "నేల కార్డుతో ప్రణాళిక సిద్ధం చేయండి.",
-    "≋",
   ],
   harvest: [
     "Harvest Grader",
@@ -28,7 +26,6 @@ export const definitions = {
     "Inspect a lot before sale.",
     "बिक्री से पहले उपज जाँचें।",
     "అమ్మకానికి ముందే పంటను పరిశీలించండి.",
-    "◈",
   ],
   schemes: [
     "Yojana Setu",
@@ -38,7 +35,6 @@ export const definitions = {
     "Find schemes for your farm.",
     "अपने खेत के लिए योजनाएँ खोजें।",
     "మీ పొలానికి పథకాలు కనుగొనండి.",
-    "▤",
   ],
   learn: [
     "Vidya Vani",
@@ -48,16 +44,14 @@ export const definitions = {
     "Explore a farming question.",
     "खेती से जुड़ा सवाल पूछें।",
     "సాగు గురించి ప్రశ్న అడగండి.",
-    "◉",
   ],
 };
 export function toolText(key, lang) {
-  const [name, en, hi, te, de, dh, dt, icon] = definitions[key];
+  const [name, en, hi, te, de, dh, dt] = definitions[key];
   return {
     name,
     title: local(lang, en, hi, te),
     desc: local(lang, de, dh, dt),
-    icon,
   };
 }
 export const optionLabels = {

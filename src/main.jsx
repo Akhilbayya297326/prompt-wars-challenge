@@ -3,6 +3,17 @@ import { createRoot } from "react-dom/client";
 import { languages, local, tools } from "../shared/fields.js";
 import { toolText } from "./copy.js";
 import { FieldForm } from "./FieldForm.jsx";
+import {
+  BookOpen,
+  CalendarDays,
+  ChevronDown,
+  Languages,
+  LayoutGrid,
+  Mic,
+  NotebookPen,
+  Sprout,
+} from "lucide-react";
+import { ToolIcon } from "./ToolIcon.jsx";
 import { Plan } from "./Plan.jsx";
 import { allPlans, enqueue, remove, syncPlans } from "./notebook.js";
 import "./style.css";
@@ -19,6 +30,7 @@ function App() {
   });
   const [view, setView] = useState("desk");
   const [tool, setTool] = useState("crop");
+  const [drafts, setDrafts] = useState({});
   const [online, setOnline] = useState(navigator.onLine);
   const [entries, setEntries] = useState([]);
   const [storageError, setStorageError] = useState(false);
@@ -125,12 +137,46 @@ function App() {
   }
   async function submit(input) {
     await enqueue(input);
+    setDrafts((previous) => {
+      const next = { ...previous };
+      delete next[input.tool];
+      return next;
+    });
     await refresh();
-    setView("notes");
-    window.scrollTo(0, 0);
+    openView("notes");
     await sync();
   }
   const pending = entries.filter((e) => e.status === "pending").length;
+  function openView(next) {
+    setView(next);
+    requestAnimationFrame(() => {
+      const heading = document.querySelector("main h1");
+      heading?.focus({ preventScroll: true });
+      window.scrollTo(0, 0);
+    });
+  }
+  const navigation = (
+    <nav
+      className="workspace-nav"
+      aria-label={t("Workspace", "कार्य क्षेत्र", "కార్యస్థలం")}
+    >
+      <button
+        aria-current={view === "desk" ? "page" : undefined}
+        onClick={() => openView("desk")}
+      >
+        <LayoutGrid />
+        {t("Field desk", "खेत डेस्क", "పొలం డెస్క్")}
+      </button>
+      <button
+        aria-current={view === "notes" ? "page" : undefined}
+        onClick={() => openView("notes")}
+      >
+        <BookOpen />
+        {t("Field notebook", "खेत नोटबुक", "పొలం నోట్‌బుక్")}{" "}
+        <span className="count">{entries.length}</span>
+      </button>
+    </nav>
+  );
   return (
     <>
       <a className="skip" href="#main">
@@ -138,50 +184,40 @@ function App() {
       </a>
       <header>
         <div className="bar">
-          <a className="brand" href="#main" onClick={() => setView("desk")}>
+          <a className="brand" href="#main" onClick={() => openView("desk")}>
             <b className="brand-mark" aria-hidden="true">
-              ✳
+              <Sprout />
             </b>
             Krishi Chakra
           </a>
+          {navigation}
           <div className="header-right">
             <span className={"network " + (online ? "on" : "off")}>
               {online
                 ? t("Online", "ऑनलाइन", "ఆన్‌లైన్")
                 : t("Offline", "ऑफ़लाइन", "ఆఫ్‌లైన్")}
             </span>
-            <select
-              aria-label="Language / भाषा / భాష"
-              value={lang}
-              onChange={(e) => {
-                voiceRef.current?.abort();
-                setVoiceMessage("");
-                setLang(e.target.value);
-              }}
-            >
-              <option value="en">English</option>
-              <option value="hi">हिन्दी</option>
-              <option value="te">తెలుగు</option>
-            </select>
+            <div className="language">
+              <Languages aria-hidden="true" />
+              <select
+                aria-label="Language / भाषा / భాష"
+                value={lang}
+                onChange={(e) => {
+                  voiceRef.current?.abort();
+                  setVoiceMessage("");
+                  setLang(e.target.value);
+                }}
+              >
+                <option value="en">English</option>
+                <option value="hi">हिन्दी</option>
+                <option value="te">తెలుగు</option>
+              </select>
+              <ChevronDown aria-hidden="true" />
+            </div>
           </div>
         </div>
       </header>
       <main id="main">
-        <nav aria-label={t("Workspace", "कार्य क्षेत्र", "కార్యస్థలం")}>
-          <button
-            aria-current={view === "desk" ? "page" : undefined}
-            onClick={() => setView("desk")}
-          >
-            {t("Field desk", "खेत डेस्क", "పొలం డెస్క్")}
-          </button>
-          <button
-            aria-current={view === "notes" ? "page" : undefined}
-            onClick={() => setView("notes")}
-          >
-            {t("Field notebook", "खेत नोटबुक", "పొలం నోట్‌బుక్")}{" "}
-            <span>{entries.length}</span>
-          </button>
-        </nav>
         {storageError && (
           <p role="alert">
             {t(
@@ -196,9 +232,16 @@ function App() {
             <section className="hero">
               <div className="hero-copy">
                 <span className="eyebrow">
-                  {t("Farmer workspace", "किसान कार्यक्षेत्र", "రైతు కార్యస్థలం")}
+                  <CalendarDays aria-hidden="true" />
+                  {new Intl.DateTimeFormat(lang + "-IN", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "long",
+                  }).format(new Date())}
                 </span>
-                <h1>{t("Your field desk", "आपका खेत डेस्क", "మీ పొలం డెస్క్")}</h1>
+                <h1 tabIndex="-1">
+                  {t("Your field desk", "आपका खेत डेस्क", "మీ పొలం డెస్క్")}
+                </h1>
                 <p>
                   {t(
                     "Turn crop observations, soil readings and harvest checks into a plan for your farm.",
@@ -211,7 +254,28 @@ function App() {
             </section>
             <div className="workbench">
               <aside>
-                <h2>{t("Field tools", "खेती के टूल", "సాగు సాధనాలు")}</h2>
+                <h2 className="rail-title">
+                  {t("Field tools", "खेती के टूल", "సాగు సాధనాలు")}
+                </h2>
+                <label className="mobile-picker">
+                  <LayoutGrid aria-hidden="true" />
+                  <span>{t("Field tools", "खेती के टूल", "సాగు సాధనాలు")}</span>
+                  <strong aria-hidden="true">
+                    {toolText(tool, lang).title}
+                  </strong>
+                  <select
+                    aria-label={t("Field tools", "खेती के टूल", "సాగు సాధనాలు")}
+                    value={tool}
+                    onChange={(e) => selectTool(e.target.value)}
+                  >
+                    {tools.map((key) => (
+                      <option key={key} value={key}>
+                        {toolText(key, lang).title}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown aria-hidden="true" />
+                </label>
                 <div className="tool-list">
                   {tools.map((key) => {
                     const info = toolText(key, lang);
@@ -222,9 +286,7 @@ function App() {
                         aria-pressed={key === tool}
                         onClick={() => selectTool(key, true)}
                       >
-                        <span aria-hidden="true" className={"symbol " + key}>
-                          {info.icon}
-                        </span>
+                        <ToolIcon tool={key} />
                         <span>
                           <strong>{info.title}</strong>
                           <small>{info.desc}</small>
@@ -235,17 +297,26 @@ function App() {
                 </div>
                 {(window.SpeechRecognition ||
                   window.webkitSpeechRecognition) && (
-                  <button className="text-button" onClick={navigateVoice}>
-                    {t(
-                      "Open a tool by voice",
-                      "बोलकर टूल खोलें",
-                      "మాటతో సాధనం తెరవండి",
-                    )}
+                  <button
+                    className="text-button voice-nav"
+                    onClick={navigateVoice}
+                  >
+                    <Mic aria-hidden="true" />
+                    <span>
+                      {t(
+                        "Open a tool by voice",
+                        "बोलकर टूल खोलें",
+                        "మాటతో సాధనం తెరవండి",
+                      )}
+                    </span>
                   </button>
                 )}
                 <p role="status">{voiceMessage}</p>
               </aside>
               <FieldForm
+                drafts={drafts}
+                setDrafts={setDrafts}
+                online={online}
                 key={tool}
                 tool={tool}
                 lang={lang}
@@ -258,8 +329,9 @@ function App() {
           <section className="notebook">
             <div className="heading">
               <div>
-                <span className="eyebrow">Krishi Chakra</span>
-                <h1>{t("Field notebook", "खेत नोटबुक", "పొలం నోట్‌బుక్")}</h1>
+                <h1 tabIndex="-1">
+                  {t("Field notebook", "खेत नोटबुक", "పొలం నోట్‌బుక్")}
+                </h1>
               </div>
               {pending > 0 && (
                 <button
@@ -278,6 +350,7 @@ function App() {
             </div>
             {!entries.length && (
               <div className="empty">
+                <NotebookPen aria-hidden="true" />
                 <h2>
                   {t(
                     "Your notebook is empty",
@@ -285,16 +358,17 @@ function App() {
                     "మీ నోట్‌బుక్ ఖాళీగా ఉంది",
                   )}
                 </h2>
-                <button className="primary" onClick={() => setView("desk")}>
+                <button className="primary" onClick={() => openView("desk")}>
                   {t("Open field desk", "खेत डेस्क खोलें", "పొలం డెస్క్ తెరవండి")}
                 </button>
               </div>
             )}
             <div aria-live="polite">
-              {entries.map((entry) => (
+              {entries.map((entry, index) => (
                 <Plan
                   key={entry.id}
                   entry={entry}
+                  latest={index === 0}
                   onRemove={
                     entry.status !== "pending"
                       ? async (id) => {

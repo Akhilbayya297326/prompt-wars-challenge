@@ -1,16 +1,24 @@
 import React from "react";
 import { toolText } from "./copy.js";
 import { local } from "../shared/fields.js";
-export function Plan({ entry, onRemove }) {
+import { ChevronDown } from "lucide-react";
+import { ToolIcon } from "./ToolIcon.jsx";
+export function Plan({ entry, onRemove, latest }) {
   const { result, lang, tool } = entry;
   const t = (...words) => local(lang, ...words);
   return (
-    <article className="plan" lang={lang}>
-      <div className="kicker">
-        {toolText(tool, lang).name} ·{" "}
-        {new Date(entry.time).toLocaleDateString(lang + "-IN")}
-      </div>
-      <h3>{result?.title || entry.label}</h3>
+    <details className="plan" lang={lang} open={latest}>
+      <summary className="plan-toggle">
+        <ToolIcon tool={tool} />
+        <span>
+          <span className="kicker">
+            {toolText(tool, lang).name} ·{" "}
+            {new Date(entry.time).toLocaleDateString(lang + "-IN")}
+          </span>
+          <strong className="plan-title">{result?.title || entry.label}</strong>
+        </span>
+        <ChevronDown aria-hidden="true" />
+      </summary>
       {entry.status === "pending" && (
         <p>
           {t(
@@ -122,6 +130,6 @@ export function Plan({ entry, onRemove }) {
           {t("Remove from device", "डिवाइस से हटाएँ", "పరికరం నుండి తొలగించండి")}
         </button>
       )}
-    </article>
+    </details>
   );
 }
