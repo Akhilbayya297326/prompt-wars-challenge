@@ -1,0 +1,321 @@
+import React, { useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { languages, local, tools } from "../shared/fields.js";
+import { toolText } from "./copy.js";
+import { FieldForm } from "./FieldForm.jsx";
+import { Plan } from "./Plan.jsx";
+import { allPlans, enqueue, remove, syncPlans } from "./notebook.js";
+import "./style.css";
+
+function App() {
+  const [lang, setLang] = useState(() => {
+    try {
+      return languages.includes(localStorage.krishiLanguage)
+        ? localStorage.krishiLanguage
+        : "en";
+    } catch {
+      return "en";
+    }
+  });
+  const [view, setView] = useState("desk");
+  const [tool, setTool] = useState("crop");
+  const [online, setOnline] = useState(navigator.onLine);
+  const [entries, setEntries] = useState([]);
+  const [storageError, setStorageError] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [voiceMessage, setVoiceMessage] = useState("");
+  const voiceRef = useRef();
+  const flight = useRef();
+  const t = (...words) => local(lang, ...words);
+  const refresh = async () => {
+    setEntries(await allPlans());
+    setStorageError(false);
+  };
+  function sync() {
+    if (flight.current) return flight.current;
+    setSyncing(true);
+    flight.current = refresh()
+      .then(() => syncPlans(refresh))
+      .then(refresh)
+      .catch(() => setStorageError(true))
+      .finally(() => {
+        flight.current = null;
+        setSyncing(false);
+      });
+    return flight.current;
+  }
+  useEffect(() => {
+    const network = () => {
+      setOnline(navigator.onLine);
+      void sync();
+    };
+    const timer = setInterval(() => {
+      if (!document.hidden) void sync();
+    }, 45000);
+    network();
+    window.addEventListener("online", network);
+    window.addEventListener("offline", network);
+    window.addEventListener("focus", network);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("online", network);
+      window.removeEventListener("offline", network);
+      window.removeEventListener("focus", network);
+      voiceRef.current?.abort();
+    };
+  }, []);
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    try {
+      localStorage.krishiLanguage = lang;
+    } catch {}
+  }, [lang]);
+  function selectTool(key, focus = false) {
+    setView("desk");
+    setTool(key);
+    if (focus)
+      requestAnimationFrame(() => {
+        document.querySelector("#workflow-title")?.focus();
+      });
+  }
+  function navigateVoice() {
+    const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+    voiceRef.current?.abort();
+    const rec = new Speech();
+    voiceRef.current = rec;
+    rec.lang = lang + "-IN";
+    const help = t(
+      "Say a tool name, such as Crop health.",
+      "एक टूल का नाम बोलें, जैसे फसल स्वास्थ्य।",
+      "ఒక సాధనం పేరు చెప్పండి, ఉదాహరణకు పంట ఆరోగ్యం.",
+    );
+    setVoiceMessage(help);
+    rec.onresult = (e) => {
+      const heard = e.results[0][0].transcript.trim().toLowerCase();
+      const key = tools.find((k) =>
+        [
+          k,
+          toolText(k, lang).name,
+          ...languages.map((l) => toolText(k, l).title),
+        ].some((s) => heard.includes(s.toLowerCase())),
+      );
+      if (key) {
+        selectTool(key, true);
+        setVoiceMessage("");
+      } else if (
+        ["notebook", "नोटबुक", "నోట్‌బుక్"].some((s) => heard.includes(s))
+      ) {
+        setView("notes");
+        setVoiceMessage("");
+      } else setVoiceMessage(help);
+    };
+    rec.onerror = () =>
+      setVoiceMessage(
+        t(
+          "Voice input unavailable. Select a tool below.",
+          "आवाज़ उपलब्ध नहीं है। नीचे टूल चुनें।",
+          "వాయిస్ అందుబాటులో లేదు. కింద సాధనం ఎంచుకోండి.",
+        ),
+      );
+    try {
+      rec.start();
+    } catch {
+      rec.onerror();
+    }
+  }
+  async function submit(input) {
+    await enqueue(input);
+    await refresh();
+    setView("notes");
+    window.scrollTo(0, 0);
+    await sync();
+  }
+  const pending = entries.filter((e) => e.status === "pending").length;
+  return (
+    <>
+      <a className="skip" href="#main">
+        {t("Skip to content", "सामग्री पर जाएँ", "విషయానికి వెళ్లండి")}
+      </a>
+      <header>
+        <div className="bar">
+          <a className="brand" href="#main" onClick={() => setView("desk")}>
+            <b className="brand-mark" aria-hidden="true">
+              ✳
+            </b>
+            Krishi Chakra
+          </a>
+          <div className="header-right">
+            <span className={"network " + (online ? "on" : "off")}>
+              {online
+                ? t("Online", "ऑनलाइन", "ఆన్‌లైన్")
+                : t("Offline", "ऑफ़लाइन", "ఆఫ్‌లైన్")}
+            </span>
+            <select
+              aria-label="Language / भाषा / భాష"
+              value={lang}
+              onChange={(e) => {
+                voiceRef.current?.abort();
+                setVoiceMessage("");
+                setLang(e.target.value);
+              }}
+            >
+              <option value="en">English</option>
+              <option value="hi">हिन्दी</option>
+              <option value="te">తెలుగు</option>
+            </select>
+          </div>
+        </div>
+      </header>
+      <main id="main">
+        <nav aria-label={t("Workspace", "कार्य क्षेत्र", "కార్యస్థలం")}>
+          <button
+            aria-current={view === "desk" ? "page" : undefined}
+            onClick={() => setView("desk")}
+          >
+            {t("Field desk", "खेत डेस्क", "పొలం డెస్క్")}
+          </button>
+          <button
+            aria-current={view === "notes" ? "page" : undefined}
+            onClick={() => setView("notes")}
+          >
+            {t("Field notebook", "खेत नोटबुक", "పొలం నోట్‌బుక్")}{" "}
+            <span>{entries.length}</span>
+          </button>
+        </nav>
+        {storageError && (
+          <p role="alert">
+            {t(
+              "Device storage unavailable. Allow site storage to save plans.",
+              "डिवाइस स्टोरेज की अनुमति दें।",
+              "పరికర నిల్వ అనుమతించండి.",
+            )}
+          </p>
+        )}
+        {view === "desk" ? (
+          <>
+            <section className="hero">
+              <div className="hero-copy">
+                <span className="eyebrow">
+                  {t("Farmer workspace", "किसान कार्यक्षेत्र", "రైతు కార్యస్థలం")}
+                </span>
+                <h1>{t("Your field desk", "आपका खेत डेस्क", "మీ పొలం డెస్క్")}</h1>
+                <p>
+                  {t(
+                    "Turn crop observations, soil readings and harvest checks into a plan for your farm.",
+                    "फसल के लक्षण, मिट्टी की जाँच और उपज की जानकारी से अपने खेत की योजना बनाएँ।",
+                    "పంట లక్షణాలు, నేల వివరాలు, నాణ్యత ఆధారంగా మీ పొలానికి ప్రణాళిక రూపొందించండి.",
+                  )}
+                </p>
+              </div>
+              <div className="field-image" aria-hidden="true" />
+            </section>
+            <div className="workbench">
+              <aside>
+                <h2>{t("Field tools", "खेती के टूल", "సాగు సాధనాలు")}</h2>
+                <div className="tool-list">
+                  {tools.map((key) => {
+                    const info = toolText(key, lang);
+                    return (
+                      <button
+                        key={key}
+                        className={"tool " + (key === tool ? "active" : "")}
+                        aria-pressed={key === tool}
+                        onClick={() => selectTool(key, true)}
+                      >
+                        <span aria-hidden="true" className={"symbol " + key}>
+                          {info.icon}
+                        </span>
+                        <span>
+                          <strong>{info.title}</strong>
+                          <small>{info.desc}</small>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {(window.SpeechRecognition ||
+                  window.webkitSpeechRecognition) && (
+                  <button className="text-button" onClick={navigateVoice}>
+                    {t(
+                      "Open a tool by voice",
+                      "बोलकर टूल खोलें",
+                      "మాటతో సాధనం తెరవండి",
+                    )}
+                  </button>
+                )}
+                <p role="status">{voiceMessage}</p>
+              </aside>
+              <FieldForm
+                key={tool}
+                tool={tool}
+                lang={lang}
+                t={t}
+                onSubmit={submit}
+              />
+            </div>
+          </>
+        ) : (
+          <section className="notebook">
+            <div className="heading">
+              <div>
+                <span className="eyebrow">Krishi Chakra</span>
+                <h1>{t("Field notebook", "खेत नोटबुक", "పొలం నోట్‌బుక్")}</h1>
+              </div>
+              {pending > 0 && (
+                <button
+                  className="secondary"
+                  disabled={!online || syncing}
+                  onClick={sync}
+                >
+                  {t(
+                    "Sync pending plans",
+                    "लंबित योजनाएँ सिंक करें",
+                    "పెండింగ్ ప్రణాళికలు సింక్ చేయండి",
+                  )}{" "}
+                  ({pending})
+                </button>
+              )}
+            </div>
+            {!entries.length && (
+              <div className="empty">
+                <h2>
+                  {t(
+                    "Your notebook is empty",
+                    "आपकी नोटबुक खाली है",
+                    "మీ నోట్‌బుక్ ఖాళీగా ఉంది",
+                  )}
+                </h2>
+                <button className="primary" onClick={() => setView("desk")}>
+                  {t("Open field desk", "खेत डेस्क खोलें", "పొలం డెస్క్ తెరవండి")}
+                </button>
+              </div>
+            )}
+            <div aria-live="polite">
+              {entries.map((entry) => (
+                <Plan
+                  key={entry.id}
+                  entry={entry}
+                  onRemove={
+                    entry.status !== "pending"
+                      ? async (id) => {
+                          try {
+                            await remove(id);
+                            await refresh();
+                          } catch {
+                            setStorageError(true);
+                          }
+                        }
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
+    </>
+  );
+}
+createRoot(document.getElementById("root")).render(<App />);
+if ("serviceWorker" in navigator && import.meta.env.PROD)
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
